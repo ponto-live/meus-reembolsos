@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meus Reembolsos</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#202124;--muted:#73777d;--line:#e8e9ed;--accent:#24262b;--danger:#d94b4b;--warn:#c58a19;--ok:#2f9b62;--shadow:0 8px 30px rgba(20,25,35,.07)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
+.app{display:flex;min-height:100vh}.sidebar{width:245px;background:#fff;border-right:1px solid var(--line);padding:24px 16px;position:fixed;inset:0 auto 0 0;z-index:5}
+.logo{font-weight:800;font-size:20px;padding:0 12px 24px}.logo span{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-top:4px}
+.nav{display:grid;gap:6px}.nav button{background:transparent;text-align:left;padding:12px;border-radius:12px;color:#555;font-weight:600}.nav button.active,.nav button:hover{background:#f1f2f4;color:#17181b}
+.main{margin-left:245px;width:calc(100% - 245px);padding:30px;max-width:1500px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:25px}.title h1{margin:0;font-size:28px}.title p{margin:5px 0 0;color:var(--muted)}
+.primary{background:#202226;color:#fff;border-radius:12px;padding:12px 17px;font-weight:700;box-shadow:var(--shadow)}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:19px;box-shadow:var(--shadow)}
+.kicker{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}.value{font-size:25px;font-weight:800;margin-top:7px}.sub{font-size:12px;color:var(--muted);margin-top:5px}
+.grid2{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}.section h2{font-size:17px;margin:0 0 15px}.storegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.store{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}.store-head{display:flex;align-items:center;gap:9px;font-weight:800}.dot{width:11px;height:11px;border-radius:50%}.store .amount{font-size:20px;font-weight:800;margin-top:12px}.store small{color:var(--muted)}
+.list{display:grid;gap:9px}.item{display:flex;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--line);border-radius:12px}.item-left{min-width:0}.item-title{font-weight:750}.item-meta{font-size:12px;color:var(--muted);margin-top:4px}.badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.pending{background:#fff0f0;color:var(--danger)}.requested{background:#fff7df;color:var(--warn)}.paid{background:#eaf8f0;color:var(--ok)}
+.page{display:none}.page.active{display:block}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.toolbar input,.toolbar select,.form input,.form select,.form textarea{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;outline:none}.toolbar input{min-width:220px}
+.people{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
+.form{display:grid;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:750;color:#555}.full{grid-column:1/-1}.form textarea{min-height:90px;resize:vertical}.upload{border:1.5px dashed #cfd2d8;padding:18px;border-radius:12px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(20,22,25,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.show{display:flex}.modalbox{background:#fff;border-radius:18px;max-width:650px;width:100%;max-height:92vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.close{background:#f1f2f4;border-radius:10px;width:36px;height:36px}
+.empty{padding:35px;text-align:center;color:var(--muted)}
+.mobilebar{display:none}
+@media(max-width:900px){.sidebar{display:none}.main{margin:0;width:100%;padding:20px 16px 88px}.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.storegrid{grid-template-columns:repeat(2,1fr)}.people{grid-template-columns:repeat(2,1fr)}.mobilebar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:10}.mobilebar button{padding:12px 4px;background:#fff;color:#666;font-size:11px}.mobilebar button.active{color:#111;font-weight:800}.mobilebar span{display:block;font-size:18px;margin-bottom:2px}.top{align-items:flex-start}.title h1{font-size:23px}}
+@media(max-width:560px){.cards{gap:9px}.card{padding:14px}.value{font-size:20px}.storegrid,.people,.form-grid{grid-template-columns:1fr}.section{padding:15px}.primary{padding:10px 12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="logo">💰 Meus Reembolsos<span>Controle de despesas adiantadas</span></div>
+  <nav class="nav">
+    <button class="active" data-page="home">🏠 Início</button>
+    <button data-page="stores">🏪 Lojas</button>
+    <button data-page="personal">👨‍👩‍👧 Pessoal</button>
+    <button data-page="reports">📊 Relatórios</button>
+  </nav>
+</aside>
+<main class="main">
+<section id="home" class="page active">
+ <div class="top"><div class="title"><h1>Meus Reembolsos</h1><p>Veja rapidamente o que você tem para receber.</p></div><button class="primary" onclick="openModal()">＋ Novo gasto</button></div>
+ <div class="cards">
+  <div class="card"><div class="kicker">Total a receber</div><div class="value" id="totalPending">R$ 0,00</div><div class="sub">Lojas + pessoal</div></div>
+  <div class="card"><div class="kicker">Este mês</div><div class="value" id="monthTotal">R$ 0,00</div><div class="sub">Despesas lançadas</div></div>
+  <div class="card"><div class="kicker">Pendentes</div><div class="value" id="pendingCount">0</div><div class="sub">Aguardando reembolso</div></div>
+  <div class="card"><div class="kicker">Reembolsados</div><div class="value" id="paidTotal">R$ 0,00</div><div class="sub">Histórico acumulado</div></div>
+ </div>
+ <div class="grid2">
+  <div class="section"><h2>🏪 Pendências por loja</h2><div class="storegrid" id="storeCards"></div></div>
+  <div class="section"><h2>👨‍👩‍👧 Pendências pessoais</h2><div class="people" id="peopleCards"></div></div>
+ </div>
+ <div class="section"><h2>Últimos lançamentos</h2><div class="list" id="recent"></div></div>
+</section>
+
+<section id="stores" class="page">
+ <div class="top"><div class="title"><h1>🏪 Reembolsos das lojas</h1><p>Controle separado por loja.</p></div><button class="primary" onclick="openModal('store')">＋ Novo gasto</button></div>
+ <div class="section"><div class="storegrid" id="storePageCards"></div></div>
+ <div class="section"><h2>Todos os gastos das lojas</h2><div class="toolbar"><input id="storeSearch" placeholder="🔎 Procurar..." oninput="renderLists()"><select id="storeFilter" onchange="renderLists()"><option value="">Todas as lojas</option></select><select id="statusFilter" onchange="renderLists()"><option value="">Todos os status</option><option value="pending">🔴 Pendente</option><option value="requested">🟡 Solicitado</option><option value="paid">🟢 Reembolsado</option></select></div><div class="list" id="storeList"></div></div>
+</section>
+
+<section id="personal" class="page">
+ <div class="top"><div class="title"><h1>👨‍👩‍👧 Reembolsos pessoais</h1><p>Sem misturar com os gastos das lojas.</p></div><button class="primary" onclick="openModal('personal')">＋ Novo gasto</button></div>
+ <div class="section"><div class="people" id="personalCards"></div></div>
+ <div class="section"><h2>Todos os gastos pessoais</h2><div class="toolbar"><input id="personalSearch" placeholder="🔎 Procurar..." oninput="renderLists()"><select id="personFilter" onchange="renderLists()"><option value="">Todas as pessoas</option></select></div><div class="list" id="personalList"></div></div>
+</section>
+
+<section id="reports" class="page">
+ <div class="top"><div class="title"><h1>📊 Relatórios</h1><p>Resumo para conferência e prestação de contas.</p></div></div>
+ <div class="section"><div class="toolbar"><select id="reportType" onchange="renderReports()"><option value="all">Tudo</option><option value="store">Lojas</option><option value="personal">Pessoal</option></select><input type="month" id="reportMonth" onchange="renderReports()"></div><div class="cards" id="reportCards"></div><div id="reportBody"></div></div>
+</section>
+</main>
+</div>
+
+<div class="mobilebar">
+<button class="active" data-page="home"><span>🏠</span>Início</button>
+<button data-page="stores"><span>🏪</span>Lojas</button>
+<button data-page="personal"><span>👨‍👩‍👧</span>Pessoal</button>
+<button data-page="reports"><span>📊</span>Relatórios</button>
+</div>
+
+<div class="modal" id="modal">
+<div class="modalbox">
+ <div class="modalhead"><h2 id="modalTitle">Novo gasto</h2><button class="close" onclick="closeModal()">✕</button></div>
+ <form class="form" onsubmit="saveExpense(event)">
+  <div class="form-grid">
+   <div class="field"><label>Tipo</label><select id="fType" onchange="toggleDestination()"><option value="store">🏪 Loja</option><option value="personal">👨‍👩‍👧 Pessoal</option></select></div>
+   <div class="field"><label>Data</label><input id="fDate" type="date" required></div>
+   <div class="field"><label>Destino</label><select id="fDestination" required></select></div>
+   <div class="field"><label>Categoria</label><select id="fCategory"><option>Material / escritório</option><option>Limpeza</option><option>Manutenção</option><option>Transporte</option><option>Alimentação</option><option>Serviços</option><option>Compras</option><option>Outros</option></select></div>
+   <div class="field full"><label>O que você comprou/pagou?</label><input id="fDesc" placeholder="Ex.: Material de limpeza" required></div>
+   <div class="field"><label>Valor</label><input id="fValue" type="number" step="0.01" min="0.01" placeholder="0,00" required></div>
+   <div class="field"><label>Forma de pagamento</label><select id="fPayment"><option>Pix</option><option>Cartão</option><option>Dinheiro</option><option>Transferência</option><option>Outro</option></select></div>
+   <div class="field full"><label>Comprovante</label><div class="upload">📎 Na versão 1, o campo está preparado para receber o comprovante. A integração de arquivos será ativada na próxima etapa.</div></div>
+   <div class="field full"><label>Observação</label><textarea id="fNote" placeholder="Opcional"></textarea></div>
+  </div>
+  <button class="primary" style="width:100%">Salvar gasto</button>
+ </form>
+</div>
+</div>
+
+<script>
+const stores=[
+ {name:'Praiamar',color:'#e89ab0'},{name:'Azevedo',color:'#6fa8dc'},{name:'Miramar',color:'#d7b24c'},
+ {name:'Praia Grande',color:'#b78ad6'},{name:'Bioritmo',color:'#79c7d4'},{name:'Mundo Verde',color:'#79b982'}
+];
+const people=['Filha','Mãe','Casa','Outros'];
+const key='reembolsos_live_v1';
+let expenses=JSON.parse(localStorage.getItem(key)||'[]');
+if(!expenses.length){
+ expenses=[
+  {id:1,type:'store',destination:'Miramar',date:'2026-09-27',category:'Limpeza',desc:'Material de limpeza',value:86.90,payment:'Pix',status:'pending',note:''},
+  {id:2,type:'store',destination:'Praiamar',date:'2026-09-25',category:'Material / escritório',desc:'Material de escritório',value:180,payment:'Cartão',status:'requested',note:''},
+  {id:3,type:'personal',destination:'Filha',date:'2026-09-22',category:'Serviços',desc:'Conta da filha',value:350,payment:'Pix',status:'pending',note:''},
+  {id:4,type:'store',destination:'Azevedo',date:'2026-09-20',category:'Compras',desc:'Itens para loja',value:250,payment:'Pix',status:'paid',note:''},
+ ];
+ save();
+}
+function save(){localStorage.setItem(key,JSON.stringify(expenses))}
+function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n)}
+function statusLabel(s){return s==='paid'?'🟢 Reembolsado':s==='requested'?'🟡 Solicitado':'🔴 Pendente'}
+function statusClass(s){return s}
+function sum(arr){return arr.reduce((a,b)=>a+Number(b.value),0)}
+function render(){
+ const pending=expenses.filter(x=>x.status!=='paid'), paid=expenses.filter(x=>x.status==='paid');
+ document.getElementById('totalPending').textContent=money(sum(pending));
+ document.getElementById('paidTotal').textContent=money(sum(paid));
+ document.getElementById('pendingCount').textContent=pending.length;
+ const ym=new Date().toISOString().slice(0,7);
+ document.getElementById('monthTotal').textContent=money(sum(expenses.filter(x=>x.date.startsWith(ym))));
+ renderCards(); renderLists(); renderReports();
+}
+function renderCards(){
+ const sc=document.getElementById('storeCards'), sp=document.getElementById('storePageCards');
+ const html=stores.map(s=>{const a=sum(expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid'));return `<div class="store"><div class="store-head"><i class="dot" style="background:${s.color}"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small></div>`}).join('');
+ sc.innerHTML=html; sp.innerHTML=html;
+ const pc=document.getElementById('peopleCards'), pp=document.getElementById('personalCards');
+ const ph=people.map(p=>{const a=sum(expenses.filter(x=>x.type==='personal'&&x.destination===p&&x.status!=='paid'));return `<div class="person"><b>👤 ${p}</b><strong>${money(a)}</strong><small>a receber</small></div>`}).join('');
+ pc.innerHTML=ph; pp.innerHTML=ph;
+}
+function item(x){
+ return `<div class="item" onclick="cycleStatus(${x.id})"><div class="item-left"><div class="item-title">${x.desc}</div><div class="item-meta">${x.date.split('-').reverse().join('/')} · ${x.destination} · ${x.payment}</div></div><div style="text-align:right"><b>${money(x.value)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div></div>`
+}
+function renderLists(){
+ const ssearch=(document.getElementById('storeSearch')?.value||'').toLowerCase(), sf=document.getElementById('storeFilter')?.value||'', st=document.getElementById('statusFilter')?.value||'';
+ const plist=(expenses.filter(x=>x.type==='store'&&(!ssearch||(`${x.desc} ${x.destination}`).toLowerCase().includes(ssearch))&&(!sf||x.destination===sf)&&(!st||x.status===st)));
+ document.getElementById('storeList').innerHTML=plist.length?plist.slice().reverse().map(item).join(''):'<div class="empty">Nenhum gasto encontrado.</div>';
+ const psearch=(document.getElementById('personalSearch')?.value||'').toLowerCase(), pf=document.getElementById('personFilter')?.value||'';
+ const personal=expenses.filter(x=>x.type==='personal'&&(!psearch||(`${x.desc} ${x.destination}`).toLowerCase().includes(psearch))&&(!pf||x.destination===pf));
+ document.getElementById('personalList').innerHTML=personal.length?personal.slice().reverse().map(item).join(''):'<div class="empty">Nenhum gasto encontrado.</div>';
+ document.getElementById('recent').innerHTML=expenses.length?expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(item).join(''):'<div class="empty">Nenhum lançamento.</div>';
+}
+function populate(){
+ const sf=document.getElementById('storeFilter'), pf=document.getElementById('personFilter');
+ sf.innerHTML='<option value="">Todas as lojas</option>'+stores.map(s=>`<option>${s.name}</option>`).join('');
+ pf.innerHTML='<option value="">Todas as pessoas</option>'+people.map(p=>`<option>${p}</option>`).join('');
+ toggleDestination();
+}
+function toggleDestination(){
+ const type=document.getElementById('fType').value, el=document.getElementById('fDestination');
+ el.innerHTML=(type==='store'?stores.map(s=>`<option>${s.name}</option>`):people.map(p=>`<option>${p}</option>`)).join('');
+}
+function openModal(type){
+ document.getElementById('modal').classList.add('show');
+ document.getElementById('fType').value=type==='personal'?'personal':'store';
+ document.getElementById('fDate').value=new Date().toISOString().slice(0,10);
+ toggleDestination();
+}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function saveExpense(e){
+ e.preventDefault();
+ const x={id:Date.now(),type:fType.value,date:fDate.value,destination:fDestination.value,category:fCategory.value,desc:fDesc.value,value:Number(fValue.value),payment:fPayment.value,status:'pending',note:fNote.value};
+ expenses.push(x);save();closeModal();e.target.reset();populate();render();
+}
+function cycleStatus(id){
+ const x=expenses.find(e=>e.id===id); if(!x)return;
+ x.status=x.status==='pending'?'requested':x.status==='requested'?'paid':'pending';save();render();
+}
+function renderReports(){
+ const type=document.getElementById('reportType')?.value||'all', month=document.getElementById('reportMonth')?.value||'';
+ let arr=expenses.filter(x=>(type==='all'||x.type===type)&&(!month||x.date.startsWith(month)));
+ const total=sum(arr), pending=sum(arr.filter(x=>x.status!=='paid')), paid=sum(arr.filter(x=>x.status==='paid'));
+ document.getElementById('reportCards').innerHTML=`<div class="card"><div class="kicker">Total lançado</div><div class="value">${money(total)}</div></div><div class="card"><div class="kicker">Pendente</div><div class="value">${money(pending)}</div></div><div class="card"><div class="kicker">Reembolsado</div><div class="value">${money(paid)}</div></div><div class="card"><div class="kicker">Lançamentos</div><div class="value">${arr.length}</div></div>`;
+ const groups={};arr.forEach(x=>groups[x.destination]=(groups[x.destination]||0)+Number(x.value));
+ document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>`<div class="item"><b>${k}</b><strong>${money(v)}</strong></div>`).join('')+'</div>';
+}
+document.querySelectorAll('[data-page]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(btn.dataset.page).classList.add('active');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===btn.dataset.page));window.scrollTo(0,0)}));
+populate();render();
+</script>
+</body>
+</html>
