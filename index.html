@@ -16,7 +16,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .primary{background:#202226;color:#fff;border-radius:12px;padding:12px 17px;font-weight:700;box-shadow:var(--shadow)}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:19px;box-shadow:var(--shadow)}
 .kicker{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}.value{font-size:25px;font-weight:800;margin-top:7px}.sub{font-size:12px;color:var(--muted);margin-top:5px}
-.grid2{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}.section h2{font-size:17px;margin:0 0 15px}.storegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.store{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}.store-head{display:flex;align-items:center;gap:9px;font-weight:800}.dot{width:11px;height:11px;border-radius:50%}.store .amount{font-size:20px;font-weight:800;margin-top:12px}.store small{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}.section h2{font-size:17px;margin:0 0 15px}.storegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.store{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff;position:relative;overflow:hidden}.store::before{content:'';position:absolute;left:0;top:0;right:0;height:5px;background:var(--store-color)}.store-head{display:flex;align-items:center;gap:9px;font-weight:800}.dot{width:11px;height:11px;border-radius:50%;background:var(--store-color)!important}.store .amount{font-size:20px;font-weight:800;margin-top:12px}.store small{color:var(--muted)}
 .list{display:grid;gap:9px}.item{display:flex;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--line);border-radius:12px}.item-left{min-width:0}.item-title{font-weight:750}.item-meta{font-size:12px;color:var(--muted);margin-top:4px}.badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.pending{background:#fff0f0;color:var(--danger)}.requested{background:#fff7df;color:var(--warn)}.paid{background:#eaf8f0;color:var(--ok)}
 .page{display:none}.page.active{display:block}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.toolbar input,.toolbar select,.form input,.form select,.form textarea{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;outline:none}.toolbar input{min-width:220px}
 .people{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
@@ -103,21 +103,17 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 
 <script>
 const stores=[
- {name:'Praiamar',color:'#e89ab0'},{name:'Azevedo',color:'#6fa8dc'},{name:'Miramar',color:'#d7b24c'},
- {name:'Praia Grande',color:'#b78ad6'},{name:'Bioritmo',color:'#79c7d4'},{name:'Mundo Verde',color:'#79b982'}
+ {name:'Praiamar',color:'#4F8FD9'},
+ {name:'Azevedo',color:'#61B86A'},
+ {name:'Miramar',color:'#E0B43C'},
+ {name:'Praia Grande',color:'#E889A8'},
+ {name:'Bioritmo',color:'#9A7BC7'},
+ {name:'Mundo Verde',color:'#3FA66B'}
 ];
 const people=['Filha','Mãe','Casa','Outros'];
-const key='reembolsos_live_v1';
+const key='reembolsos_live_v3';
 let expenses=JSON.parse(localStorage.getItem(key)||'[]');
-if(!expenses.length){
- expenses=[
-  {id:1,type:'store',destination:'Miramar',date:'2026-09-27',category:'Limpeza',desc:'Material de limpeza',value:86.90,payment:'Pix',status:'pending',note:''},
-  {id:2,type:'store',destination:'Praiamar',date:'2026-09-25',category:'Material / escritório',desc:'Material de escritório',value:180,payment:'Cartão',status:'requested',note:''},
-  {id:3,type:'personal',destination:'Filha',date:'2026-09-22',category:'Serviços',desc:'Conta da filha',value:350,payment:'Pix',status:'pending',note:''},
-  {id:4,type:'store',destination:'Azevedo',date:'2026-09-20',category:'Compras',desc:'Itens para loja',value:250,payment:'Pix',status:'paid',note:''},
- ];
- save();
-}
+
 function save(){localStorage.setItem(key,JSON.stringify(expenses))}
 function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n)}
 function statusLabel(s){return s==='paid'?'🟢 Reembolsado':s==='requested'?'🟡 Solicitado':'🔴 Pendente'}
@@ -134,7 +130,7 @@ function render(){
 }
 function renderCards(){
  const sc=document.getElementById('storeCards'), sp=document.getElementById('storePageCards');
- const html=stores.map(s=>{const a=sum(expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid'));return `<div class="store"><div class="store-head"><i class="dot" style="background:${s.color}"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small></div>`}).join('');
+ const html=stores.map(s=>{const a=sum(expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid'));return `<div class="store" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small></div>`}).join('');
  sc.innerHTML=html; sp.innerHTML=html;
  const pc=document.getElementById('peopleCards'), pp=document.getElementById('personalCards');
  const ph=people.map(p=>{const a=sum(expenses.filter(x=>x.type==='personal'&&x.destination===p&&x.status!=='paid'));return `<div class="person"><b>👤 ${p}</b><strong>${money(a)}</strong><small>a receber</small></div>`}).join('');
