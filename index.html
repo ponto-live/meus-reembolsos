@@ -56,6 +56,11 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
   <div class="card"><div class="kicker">Pendentes</div><div class="value" id="pendingCount">0</div><div class="sub">Aguardando reembolso</div></div>
   <div class="card"><div class="kicker">Reembolsados</div><div class="value" id="paidTotal">R$ 0,00</div><div class="sub">Histórico acumulado</div></div>
  </div>
+ <div class="toolbar" style="margin:0 0 20px 0">
+   <button class="primary" type="button" onclick="exportBackup()">⬇️ Backup</button>
+   <button type="button" onclick="document.getElementById('restoreInput').click()" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 17px;font-weight:700">⬆️ Restaurar</button>
+   <input id="restoreInput" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
+ </div>
  <div class="grid2">
   <div class="section"><h2>🏪 Pendências por loja</h2><div class="storegrid" id="storeCards"></div></div>
   <div class="section"><h2>👨‍👩‍👧 Pendências pessoais</h2><div class="people" id="peopleCards"></div></div>
