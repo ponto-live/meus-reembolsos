@@ -19,7 +19,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .grid2{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}.section h2{font-size:17px;margin:0 0 15px}.storegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.store{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff;position:relative;overflow:hidden}.store::before{content:'';position:absolute;left:0;top:0;right:0;height:5px;background:var(--store-color)}.store-head{display:flex;align-items:center;gap:9px;font-weight:800}.dot{width:11px;height:11px;border-radius:50%;background:var(--store-color)!important}.store .amount{font-size:20px;font-weight:800;margin-top:12px}.store small{color:var(--muted)}
 .list{display:grid;gap:9px}.item{display:flex;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--line);border-radius:12px}.item-left{min-width:0}.item-title{font-weight:750}.item-meta{font-size:12px;color:var(--muted);margin-top:4px}.badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.pending{background:#fff0f0;color:var(--danger)}.requested{background:#fff7df;color:var(--warn)}.paid{background:#eaf8f0;color:var(--ok)}
 .page{display:none}.page.active{display:block}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}.toolbar input,.toolbar select,.form input,.form select,.form textarea{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 12px;outline:none}.toolbar input{min-width:220px}
-.people{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
+.people{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
 .form{display:grid;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:750;color:#555}.full{grid-column:1/-1}.form textarea{min-height:90px;resize:vertical}.upload{border:1.5px dashed #cfd2d8;padding:18px;border-radius:12px;text-align:center;color:var(--muted)}
 .modal{position:fixed;inset:0;background:rgba(20,22,25,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.show{display:flex}.modalbox{background:#fff;border-radius:18px;max-width:650px;width:100%;max-height:92vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.close{background:#f1f2f4;border-radius:10px;width:36px;height:36px}
 .empty{padding:35px;text-align:center;color:var(--muted)}
@@ -145,7 +145,17 @@ function renderCards(){
  pc.innerHTML=ph; pp.innerHTML=ph;
 }
 function item(x){
- return `<div class="item" onclick="cycleStatus(${x.id})"><div class="item-left"><div class="item-title">${x.desc}</div><div class="item-meta">${x.date.split('-').reverse().join('/')} · ${x.destination} · ${x.payment}</div></div><div style="text-align:right"><b>${money(x.value)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div></div>`
+ const store=stores.find(s=>s.name===x.destination);
+ const accent=store ? store.color : '#9A7BC7';
+ const bg=store ? `${store.color}12` : '#ffffff';
+ const border=store ? `border-left:5px solid ${store.color}` : 'border-left:5px solid #c9cbd1';
+ return `<div class="item" onclick="cycleStatus(${x.id})" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
+   <div class="item-left">
+     <div class="item-title">${x.desc}</div>
+     <div class="item-meta">${x.date.split('-').reverse().join('/')} · <strong style="color:${accent}">${x.destination}</strong> · ${x.payment}</div>
+   </div>
+   <div style="text-align:right"><b>${money(x.value)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div>
+ </div>`
 }
 function renderLists(){
  const ssearch=(document.getElementById('storeSearch')?.value||'').toLowerCase(), sf=document.getElementById('storeFilter')?.value||'', st=document.getElementById('statusFilter')?.value||'';
