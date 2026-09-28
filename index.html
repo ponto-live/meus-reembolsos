@@ -59,6 +59,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
  <div class="toolbar" style="margin:0 0 20px 0">
    <button class="primary" type="button" onclick="exportBackup()">⬇️ Backup</button>
    <button type="button" onclick="document.getElementById('restoreInput').click()" style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 17px;font-weight:700">⬆️ Restaurar</button>
+   <button type="button" onclick="enviarParaFirebase()" style="background:#fff;border:1px solid #b8cfe8;border-radius:12px;padding:12px 17px;font-weight:700">☁️ Enviar ao Firebase</button>
+   <span id="cloudStatus" style="display:inline-flex;align-items:center;padding:0 6px;color:var(--muted);font-size:12px;font-weight:700">☁️ Conectando...</span>
    <input id="restoreInput" type="file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
  </div>
  <div class="grid2">
@@ -121,6 +123,69 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 </div>
 </div>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB-zKf7IAf53j2nRj3H9jGCUhM6bft-xsg",
+  authDomain: "live-atendimento.firebaseapp.com",
+  databaseURL: "https://live-atendimento-default-rtdb.firebaseio.com",
+  projectId: "live-atendimento",
+  storageBucket: "live-atendimento.firebasestorage.app",
+  messagingSenderId: "776732685372",
+  appId: "1:776732685372:web:3c5a17677c3dd3de6bff39"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const cloudDb = getDatabase(firebaseApp);
+const cloudExpensesRef = ref(cloudDb, 'reembolsos/despesas');
+window.__reembolsosFirebase = { cloudDb, cloudExpensesRef, update };
+
+onValue(cloudExpensesRef, (snap) => {
+  const data = snap.val();
+  window.__reembolsosCloudReady = true;
+  if (data && typeof data === 'object') {
+    const incoming = Object.values(data).filter(Boolean);
+    if (incoming.length) {
+      expenses = incoming;
+      localStorage.setItem(key, JSON.stringify(expenses));
+      populate();
+      render();
+      setCloudStatus('☁️ Sincronizado');
+      return;
+    }
+  }
+  if (expenses.length) {
+    setCloudStatus('☁️ Dados locais prontos para enviar');
+  } else {
+    setCloudStatus('☁️ Conectado');
+  }
+}, (err) => {
+  console.error(err);
+  setCloudStatus('⚠️ Firebase não conectado');
+});
+
+window.setCloudStatus = function(text){
+  const el=document.getElementById('cloudStatus');
+  if(el) el.textContent=text;
+};
+
+window.enviarParaFirebase = async function(){
+  if(!expenses.length){ alert('Não há lançamentos locais para enviar.'); return; }
+  if(!confirm('Enviar os lançamentos deste aparelho para o Firebase? Seus dados atuais serão mantidos.')) return;
+  try{
+    const updates = {};
+    for(const x of expenses) updates[String(x.id)] = x;
+    await window.__reembolsosFirebase.update(window.__reembolsosFirebase.cloudExpensesRef, updates);
+    setCloudStatus('☁️ Enviado e sincronizado');
+    alert('Dados enviados para o Firebase com sucesso!');
+  }catch(err){
+    console.error(err);
+    alert('Não foi possível enviar os dados para o Firebase. Seus dados locais continuam preservados.');
+  }
+};
+</script>
 <script>
 const stores=[
  {name:'Praiamar',color:'#4F8FD9'},
@@ -135,6 +200,16 @@ const key='reembolsos_live_v3';
 let expenses=JSON.parse(localStorage.getItem(key)||'[]');
 
 function save(){localStorage.setItem(key,JSON.stringify(expenses))}
+async function saveCloudExpense(x){
+  try{
+    if(window.__reembolsosFirebase?.update && window.__reembolsosFirebase?.cloudExpensesRef){
+      await window.__reembolsosFirebase.update(window.__reembolsosFirebase.cloudExpensesRef,{[String(x.id)]:x});
+      setCloudStatus('☁️ Sincronizado');
+      return true;
+    }
+  }catch(err){ console.error(err); setCloudStatus('⚠️ Salvo neste aparelho'); }
+  return false;
+}
 
 const DB_NAME='meus_reembolsos_comprovantes';
 const DB_VERSION=1;
@@ -356,7 +431,7 @@ async function saveExpense(e){
  try{
   const x={id:Date.now(),type:fType.value,date:fDate.value,destination:fDestination.value,category:fCategory.value,desc:fDesc.value,value:Number(fValue.value),payment:fPayment.value,status:'pending',note:fNote.value};
   if(receipt) x.receiptId=await saveReceipt(receipt);
-  expenses.push(x);save();closeModal();e.target.reset();
+  expenses.push(x);save();await saveCloudExpense(x);closeModal();e.target.reset();
   const preview=document.getElementById('receiptPreview');if(preview){preview.style.display='none';preview.removeAttribute('src')}
   populate();render();
  }catch(err){
@@ -367,7 +442,7 @@ async function saveExpense(e){
 }
 function cycleStatus(id){
  const x=expenses.find(e=>e.id===id); if(!x)return;
- x.status=x.status==='pending'?'requested':x.status==='requested'?'paid':'pending';save();render();
+ x.status=x.status==='pending'?'requested':x.status==='requested'?'paid':'pending';save();render();saveCloudExpense(x);
 }
 function renderReports(){
  const type=document.getElementById('reportType')?.value||'all', month=document.getElementById('reportMonth')?.value||'';
