@@ -178,6 +178,88 @@ async function getReceipt(id){
   req.onerror=()=>reject(req.error);
  });
 }
+
+async function blobToDataUrl(blob){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onload=()=>resolve(reader.result);
+  reader.onerror=()=>reject(reader.error);
+  reader.readAsDataURL(blob);
+ });
+}
+async function dataUrlToBlob(dataUrl){
+ const res=await fetch(dataUrl);
+ return await res.blob();
+}
+async function exportBackup(){
+ try{
+  const receipts={};
+  for(const x of expenses){
+   if(x.receiptId){
+    const r=await getReceipt(x.receiptId);
+    if(r?.blob) receipts[x.receiptId]={
+      data:await blobToDataUrl(r.blob),
+      name:r.name||'comprovante',
+      type:r.type||r.blob.type||'application/octet-stream'
+    };
+   }
+  }
+  const backup={
+    app:'Meus Reembolsos',
+    version:1,
+    exportedAt:new Date().toISOString(),
+    expenses,
+    receipts
+  };
+  const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const d=new Date().toISOString().slice(0,10);
+  a.href=url;a.download=`backup-reembolsos-${d}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  alert('Backup criado! Guarde o arquivo JSON em um local seguro.');
+ }catch(err){
+  alert('Não foi possível criar o backup.');
+ }
+}
+async function importBackup(event){
+ const file=event.target.files?.[0];
+ event.target.value='';
+ if(!file)return;
+ if(!confirm('Restaurar este backup vai substituir os lançamentos atuais deste navegador. Deseja continuar?'))return;
+ try{
+  const text=await file.text();
+  const backup=JSON.parse(text);
+  if(backup?.app!=='Meus Reembolsos' || !Array.isArray(backup.expenses)){
+   throw new Error('Arquivo inválido');
+  }
+  // Recria comprovantes e remapeia seus IDs.
+  const idMap={};
+  for(const [oldId,info] of Object.entries(backup.receipts||{})){
+   if(!info?.data)continue;
+   const blob=await dataUrlToBlob(info.data);
+   const db=await openReceiptDB();
+   const newId=await new Promise((resolve,reject)=>{
+    const tx=db.transaction('files','readwrite');
+    const req=tx.objectStore('files').add({blob,name:info.name||'comprovante',type:info.type||blob.type,createdAt:Date.now()});
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+   });
+   idMap[oldId]=newId;
+  }
+  expenses=backup.expenses.map(x=>{
+   const copy={...x};
+   if(copy.receiptId && idMap[copy.receiptId]!=null)copy.receiptId=idMap[copy.receiptId];
+   else if(copy.receiptId)delete copy.receiptId;
+   return copy;
+  });
+  save();populate();render();
+  alert('Backup restaurado com sucesso!');
+ }catch(err){
+  alert('Não foi possível restaurar este backup. Verifique se é um arquivo criado pelo Meus Reembolsos.');
+ }
+}
+
 async function openReceipt(id){
  try{
   const r=await getReceipt(id);
