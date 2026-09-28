@@ -1,4 +1,4 @@
-const CACHE = 'meus-reembolsos-v1';
+const CACHE = 'meus-reembolsos-v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', event => {

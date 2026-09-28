@@ -22,7 +22,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .people{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
 .form{display:grid;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:750;color:#555}.full{grid-column:1/-1}.form textarea{min-height:90px;resize:vertical}.upload{border:1.5px dashed #cfd2d8;padding:18px;border-radius:12px;text-align:center;color:var(--muted)}
 .modal{position:fixed;inset:0;background:rgba(20,22,25,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.show{display:flex}.modalbox{background:#fff;border-radius:18px;max-width:650px;width:100%;max-height:92vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.close{background:#f1f2f4;border-radius:10px;width:36px;height:36px}
-.empty{padding:35px;text-align:center;color:var(--muted)}
+.empty{padding:35px;text-align:center;color:var(--muted)}.receipt-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 7px;border-radius:8px;background:#f1f2f4;color:#333;font-size:11px;font-weight:800}.receipt-link:hover{background:#e6e7ea}
 .mobilebar{display:none}
 @media(max-width:900px){.sidebar{display:none}.main{margin:0;width:100%;padding:20px 16px 88px}.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.storegrid{grid-template-columns:repeat(2,1fr)}.people{grid-template-columns:repeat(2,1fr)}.mobilebar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:10}.mobilebar button{padding:12px 4px;background:#fff;color:#666;font-size:11px}.mobilebar button.active{color:#111;font-weight:800}.mobilebar span{display:block;font-size:18px;margin-bottom:2px}.top{align-items:flex-start}.title h1{font-size:23px}}
 @media(max-width:560px){.cards{gap:9px}.card{padding:14px}.value{font-size:20px}.storegrid,.people,.form-grid{grid-template-columns:1fr}.section{padding:15px}.primary{padding:10px 12px}}
@@ -101,7 +101,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
    <div class="field full"><label>O que você comprou/pagou?</label><input id="fDesc" placeholder="Ex.: Material de limpeza" required></div>
    <div class="field"><label>Valor</label><input id="fValue" type="number" step="0.01" min="0.01" placeholder="0,00" required></div>
    <div class="field"><label>Forma de pagamento</label><select id="fPayment"><option>Pix</option><option>Cartão</option><option>Dinheiro</option><option>Transferência</option><option>Outro</option></select></div>
-   <div class="field full"><label>Comprovante</label><div class="upload">📎 Na versão 1, o campo está preparado para receber o comprovante. A integração de arquivos será ativada na próxima etapa.</div></div>
+   <div class="field full">
+  <label>Comprovante</label>
+  <div class="upload" style="text-align:left">
+    <input id="fReceipt" type="file" accept="image/*,.pdf" capture="environment" style="width:100%">
+    <small id="receiptHint" style="display:block;margin-top:7px">📷 Pelo celular, você pode tirar a foto do comprovante na hora.</small>
+    <img id="receiptPreview" alt="Prévia do comprovante" style="display:none;max-width:180px;max-height:180px;margin-top:10px;border-radius:10px;border:1px solid var(--line);object-fit:cover">
+  </div>
+</div>
    <div class="field full"><label>Observação</label><textarea id="fNote" placeholder="Opcional"></textarea></div>
   </div>
   <button class="primary" style="width:100%">Salvar gasto</button>
@@ -123,6 +130,76 @@ const key='reembolsos_live_v3';
 let expenses=JSON.parse(localStorage.getItem(key)||'[]');
 
 function save(){localStorage.setItem(key,JSON.stringify(expenses))}
+
+const DB_NAME='meus_reembolsos_comprovantes';
+const DB_VERSION=1;
+function openReceiptDB(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open(DB_NAME,DB_VERSION);
+  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('files'))db.createObjectStore('files',{keyPath:'id',autoIncrement:true})};
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function saveReceipt(file){
+ const db=await openReceiptDB();
+ const blob=await prepareReceipt(file);
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction('files','readwrite');
+  const req=tx.objectStore('files').add({blob,name:file.name,type:blob.type,createdAt:Date.now()});
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+function prepareReceipt(file){
+ if(file.type==='application/pdf') return Promise.resolve(file);
+ return new Promise(resolve=>{
+  const reader=new FileReader();
+  reader.onload=()=>{
+   const img=new Image();
+   img.onload=()=>{
+    const max=1400;
+    const scale=Math.min(1,max/Math.max(img.width,img.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    canvas.toBlob(blob=>resolve(blob||file),'image/jpeg',.78);
+   };
+   img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+ });
+}
+async function getReceipt(id){
+ const db=await openReceiptDB();
+ return new Promise((resolve,reject)=>{
+  const req=db.transaction('files','readonly').objectStore('files').get(id);
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function openReceipt(id){
+ try{
+  const r=await getReceipt(id);
+  if(!r)return;
+  const url=URL.createObjectURL(r.blob);
+  if(r.type==='application/pdf'){window.open(url,'_blank');}
+  else{
+   const w=window.open('');
+   if(w) w.document.write(`<title>Comprovante</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${url}" style="max-width:100%;max-height:100vh;object-fit:contain"></body>`);
+  }
+ }catch(err){alert('Não foi possível abrir o comprovante.')}
+}
+function previewReceipt(){
+ const input=document.getElementById('fReceipt'), img=document.getElementById('receiptPreview');
+ if(!input||!img)return;
+ const file=input.files?.[0];
+ if(!file){img.style.display='none';return}
+ if(file.type.startsWith('image/')){
+  img.src=URL.createObjectURL(file);img.style.display='block';
+ }else{img.removeAttribute('src');img.style.display='none'}
+}
+
 function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n)}
 function statusLabel(s){return s==='paid'?'🟢 Reembolsado':s==='requested'?'🟡 Solicitado':'🔴 Pendente'}
 function statusClass(s){return s}
@@ -149,10 +226,12 @@ function item(x){
  const accent=store ? store.color : '#9A7BC7';
  const bg=store ? `${store.color}12` : '#ffffff';
  const border=store ? `border-left:5px solid ${store.color}` : 'border-left:5px solid #c9cbd1';
+ const receipt=x.receiptId?`<button class="receipt-link" onclick="event.stopPropagation();openReceipt(${x.receiptId})">📎 Comprovante</button>`:'';
  return `<div class="item" onclick="cycleStatus(${x.id})" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
    <div class="item-left">
      <div class="item-title">${x.desc}</div>
      <div class="item-meta">${x.date.split('-').reverse().join('/')} · <strong style="color:${accent}">${x.destination}</strong> · ${x.payment}</div>
+     ${receipt}
    </div>
    <div style="text-align:right"><b>${money(x.value)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div>
  </div>`
@@ -183,10 +262,21 @@ function openModal(type){
  toggleDestination();
 }
 function closeModal(){document.getElementById('modal').classList.remove('show')}
-function saveExpense(e){
+async function saveExpense(e){
  e.preventDefault();
- const x={id:Date.now(),type:fType.value,date:fDate.value,destination:fDestination.value,category:fCategory.value,desc:fDesc.value,value:Number(fValue.value),payment:fPayment.value,status:'pending',note:fNote.value};
- expenses.push(x);save();closeModal();e.target.reset();populate();render();
+ const receipt=document.getElementById('fReceipt')?.files?.[0];
+ const btn=e.submitter; if(btn){btn.disabled=true;btn.textContent='Salvando...'}
+ try{
+  const x={id:Date.now(),type:fType.value,date:fDate.value,destination:fDestination.value,category:fCategory.value,desc:fDesc.value,value:Number(fValue.value),payment:fPayment.value,status:'pending',note:fNote.value};
+  if(receipt) x.receiptId=await saveReceipt(receipt);
+  expenses.push(x);save();closeModal();e.target.reset();
+  const preview=document.getElementById('receiptPreview');if(preview){preview.style.display='none';preview.removeAttribute('src')}
+  populate();render();
+ }catch(err){
+  alert('Não foi possível salvar o comprovante. O gasto não foi salvo.');
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent='Salvar gasto'}
+ }
 }
 function cycleStatus(id){
  const x=expenses.find(e=>e.id===id); if(!x)return;
@@ -198,10 +288,11 @@ function renderReports(){
  const total=sum(arr), pending=sum(arr.filter(x=>x.status!=='paid')), paid=sum(arr.filter(x=>x.status==='paid'));
  document.getElementById('reportCards').innerHTML=`<div class="card"><div class="kicker">Total lançado</div><div class="value">${money(total)}</div></div><div class="card"><div class="kicker">Pendente</div><div class="value">${money(pending)}</div></div><div class="card"><div class="kicker">Reembolsado</div><div class="value">${money(paid)}</div></div><div class="card"><div class="kicker">Lançamentos</div><div class="value">${arr.length}</div></div>`;
  const groups={};arr.forEach(x=>groups[x.destination]=(groups[x.destination]||0)+Number(x.value));
- document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>`<div class="item"><b>${k}</b><strong>${money(v)}</strong></div>`).join('')+'</div>';
+ document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>{const store=stores.find(s=>s.name===k);const accent=store?store.color:'#9A7BC7';const bg=store?`${store.color}12`:'#fff';const border=store?`border-left:5px solid ${store.color}`:'border-left:5px solid #c9cbd1';return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}"><b style="color:${accent}">${k}</b><strong>${money(v)}</strong></div>`}).join('')+'</div>';
 }
 document.querySelectorAll('[data-page]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(btn.dataset.page).classList.add('active');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===btn.dataset.page));window.scrollTo(0,0)}));
 populate();render();
+document.getElementById('fReceipt')?.addEventListener('change',previewReceipt);
 </script>
 
 <script>
