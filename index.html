@@ -27,6 +27,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media(max-width:900px){.sidebar{display:none}.main{margin:0;width:100%;padding:20px 16px 88px}.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.storegrid{grid-template-columns:repeat(2,1fr)}.people{grid-template-columns:repeat(2,1fr)}.mobilebar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:10}.mobilebar button{padding:12px 4px;background:#fff;color:#666;font-size:11px}.mobilebar button.active{color:#111;font-weight:800}.mobilebar span{display:block;font-size:18px;margin-bottom:2px}.top{align-items:flex-start}.title h1{font-size:23px}}
 @media(max-width:560px){.cards{gap:9px}.card{padding:14px}.value{font-size:20px}.storegrid,.people,.form-grid{grid-template-columns:1fr}.section{padding:15px}.primary{padding:10px 12px}}
 </style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#202226">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Reembolsos">
+
 </head>
 <body>
 <div class="app">
@@ -185,5 +193,12 @@ function renderReports(){
 document.querySelectorAll('[data-page]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(btn.dataset.page).classList.add('active');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===btn.dataset.page));window.scrollTo(0,0)}));
 populate();render();
 </script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js'));
+}
+</script>
+
 </body>
 </html>
