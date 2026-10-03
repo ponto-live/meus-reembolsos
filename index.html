@@ -26,7 +26,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .people{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.person{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.person b{display:block;margin-bottom:8px}.person strong{font-size:21px}
 .form{display:grid;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:750;color:#555}.full{grid-column:1/-1}.form textarea{min-height:90px;resize:vertical}.upload{border:1.5px dashed #cfd2d8;padding:18px;border-radius:12px;text-align:center;color:var(--muted)}
 .modal{position:fixed;inset:0;background:rgba(20,22,25,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.show{display:flex}.modalbox{background:#fff;border-radius:18px;max-width:650px;width:100%;max-height:92vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.close{background:#f1f2f4;border-radius:10px;width:36px;height:36px}
-.empty{padding:35px;text-align:center;color:var(--muted)}.receipt-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 7px;border-radius:8px;background:#f1f2f4;color:#333;font-size:11px;font-weight:800}.receipt-link:hover{background:#e6e7ea}
+.empty{padding:35px;text-align:center;color:var(--muted)}.payment-history{margin-top:7px;font-size:11px;color:var(--muted)}.payment-history b{color:var(--ok)}.receipt-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 7px;border-radius:8px;background:#f1f2f4;color:#333;font-size:11px;font-weight:800}.receipt-link:hover{background:#e6e7ea}
 .mobilebar{display:none}
 @media(max-width:900px){.sidebar{display:none}.main{margin:0;width:100%;padding:20px 16px 88px}.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.storegrid{grid-template-columns:repeat(2,1fr)}.people{grid-template-columns:repeat(2,1fr)}.mobilebar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:10}.mobilebar button{padding:12px 4px;background:#fff;color:#666;font-size:11px}.mobilebar button.active{color:#111;font-weight:800}.mobilebar span{display:block;font-size:18px;margin-bottom:2px}.top{align-items:flex-start}.title h1{font-size:23px}}
 @media(max-width:560px){.cards{gap:9px}.card{padding:14px}.value{font-size:20px}.storegrid,.people,.form-grid{grid-template-columns:1fr}.section{padding:15px}.primary{padding:10px 12px}}
@@ -369,14 +369,18 @@ function previewReceipt(){
 function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n)}
 function statusLabel(s){return s==='paid'?'🟢 Reembolsado':s==='requested'?'🟡 Solicitado':'🔴 Pendente'}
 function statusClass(s){return s}
-function sum(arr){return arr.reduce((a,b)=>a+Number(b.value),0)}
+function receivedTotal(x){return (x.payments||[]).reduce((a,p)=>a+Number(p.amount||0),0)}
+function remainingValue(x){return Math.max(0,Number(x.value||0)-receivedTotal(x))}
+function sum(arr){return arr.reduce((a,b)=>a+(b.status==='paid'?Number(b.value||0):remainingValue(b)),0)}
+function sumOriginal(arr){return arr.reduce((a,b)=>a+Number(b.value||0),0)}
 function render(){
  const pending=expenses.filter(x=>x.status!=='paid'), paid=expenses.filter(x=>x.status==='paid');
- document.getElementById('totalPending').textContent=money(sum(pending));
- document.getElementById('paidTotal').textContent=money(sum(paid));
- document.getElementById('pendingCount').textContent=pending.length;
+ document.getElementById('totalPending').textContent=money(pending.reduce((a,x)=>a+remainingValue(x),0));
+ const reimbursed=expenses.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
+ document.getElementById('paidTotal').textContent=money(reimbursed);
+ document.getElementById('pendingCount').textContent=pending.filter(x=>remainingValue(x)>0.005).length;
  const ym=new Date().toISOString().slice(0,7);
- document.getElementById('monthTotal').textContent=money(sum(expenses.filter(x=>x.date.startsWith(ym))));
+ document.getElementById('monthTotal').textContent=money(sumOriginal(expenses.filter(x=>x.date.startsWith(ym))));
  renderCards(); renderLists(); renderReports();
 }
 let expandedStore=null;
@@ -384,7 +388,7 @@ function toggleStorePending(name){expandedStore=expandedStore===name?null:name;r
 function homeStoreCard(s){
  const pend=expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid').slice().sort((a,b)=>b.date.localeCompare(a.date));
  const a=sum(pend), expanded=expandedStore===s.name;
- const rows=pend.length?pend.map(x=>`<div class="store-pending-row"><div><div class="store-pending-title">${x.desc}</div><div class="store-pending-meta">${x.date.split('-').reverse().join('/')} · ${statusLabel(x.status)}</div></div><div class="store-pending-value">${money(x.value)}</div></div>`).join(''):'<div class="empty" style="padding:14px 0">Nenhuma pendência nesta loja.</div>';
+ const rows=pend.length?pend.map(x=>`<div class="store-pending-row"><div><div class="store-pending-title">${x.desc}</div><div class="store-pending-meta">${x.date.split('-').reverse().join('/')} · ${statusLabel(x.status)}</div></div><div class="store-pending-value">${money(remainingValue(x))}</div></div>`).join(''):'<div class="empty" style="padding:14px 0">Nenhuma pendência nesta loja.</div>';
  return `<div class="store ${expanded?'expanded':''}" onclick="toggleStorePending('${s.name}')" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small><div class="store-toggle-hint">${expanded?'Toque novamente para recolher':'Toque para ver as pendências'}</div><div class="store-pending-list" onclick="event.stopPropagation()">${rows}</div></div>`;
 }
 function renderCards(){
@@ -401,13 +405,16 @@ function item(x){
  const bg=store ? `${store.color}12` : '#ffffff';
  const border=store ? `border-left:5px solid ${store.color}` : 'border-left:5px solid #c9cbd1';
  const receipt=x.receiptId?`<button class="receipt-link" onclick="event.stopPropagation();openReceipt(${x.receiptId})">📎 Comprovante</button>`:'';
+ const received=x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0);
+ const remaining=x.status==='paid'?0:remainingValue(x);
+ const history=(x.payments||[]).length?`<div class="payment-history">Recebido: <b>${money(received)}</b>${remaining>0.005?` · Falta: <strong>${money(remaining)}</strong>`:''}<br>${x.payments.map(p=>`${(p.date||'').split('-').reverse().join('/')} — ${money(p.amount)}`).join(' · ')}</div>`:'';
  return `<div class="item" onclick="cycleStatus(${x.id})" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
    <div class="item-left">
      <div class="item-title">${x.desc}</div>
      <div class="item-meta">${x.date.split('-').reverse().join('/')} · <strong style="color:${accent}">${x.destination}</strong> · ${x.payment}</div>
-     ${receipt}
+     ${receipt}${history}
    </div>
-   <div style="text-align:right"><b>${money(x.value)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div>
+   <div style="text-align:right"><b>${x.status==='paid'?money(x.value):money(remaining)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div>
  </div>`
 }
 function renderLists(){
@@ -452,14 +459,30 @@ async function saveExpense(e){
   if(btn){btn.disabled=false;btn.textContent='Salvar gasto'}
  }
 }
-function cycleStatus(id){
+async function cycleStatus(id){
  const x=expenses.find(e=>e.id===id); if(!x)return;
- x.status=x.status==='pending'?'requested':x.status==='requested'?'paid':'pending';save();render();saveCloudExpense(x);
+ if(x.status==='pending'){
+   x.status='requested';
+ }else if(x.status==='requested'){
+   const remaining=remainingValue(x);
+   const raw=prompt(`Quanto você recebeu?\nValor ainda a receber: ${money(remaining)}`,remaining.toFixed(2).replace('.',','));
+   if(raw===null)return;
+   const amount=Number(String(raw).replace(/\./g,'').replace(',','.'));
+   if(!Number.isFinite(amount)||amount<=0){alert('Informe um valor válido.');return}
+   if(amount>remaining+0.005){alert(`O valor não pode ser maior que ${money(remaining)}.`);return}
+   x.payments=x.payments||[];
+   x.payments.push({amount:Number(amount.toFixed(2)),date:new Date().toISOString().slice(0,10),createdAt:Date.now()});
+   x.status=remainingValue(x)<=0.005?'paid':'requested';
+ }else{
+   if(!confirm('Reabrir este lançamento como pendente? O histórico de reembolsos será mantido.'))return;
+   x.status=remainingValue(x)<=0.005?'paid':'pending';
+ }
+ save();render();await saveCloudExpense(x);
 }
 function renderReports(){
  const type=document.getElementById('reportType')?.value||'all', month=document.getElementById('reportMonth')?.value||'';
  let arr=expenses.filter(x=>(type==='all'||x.type===type)&&(!month||x.date.startsWith(month)));
- const total=sum(arr), pending=sum(arr.filter(x=>x.status!=='paid')), paid=sum(arr.filter(x=>x.status==='paid'));
+ const total=sumOriginal(arr), pending=arr.filter(x=>x.status!=='paid').reduce((a,x)=>a+remainingValue(x),0), paid=arr.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
  document.getElementById('reportCards').innerHTML=`<div class="card"><div class="kicker">Total lançado</div><div class="value">${money(total)}</div></div><div class="card"><div class="kicker">Pendente</div><div class="value">${money(pending)}</div></div><div class="card"><div class="kicker">Reembolsado</div><div class="value">${money(paid)}</div></div><div class="card"><div class="kicker">Lançamentos</div><div class="value">${arr.length}</div></div>`;
  const groups={};arr.forEach(x=>groups[x.destination]=(groups[x.destination]||0)+Number(x.value));
  document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>{const store=stores.find(s=>s.name===k);const accent=store?store.color:'#9A7BC7';const bg=store?`${store.color}12`:'#fff';const border=store?`border-left:5px solid ${store.color}`:'border-left:5px solid #c9cbd1';return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}"><b style="color:${accent}">${k}</b><strong>${money(v)}</strong></div>`}).join('')+'</div>';
