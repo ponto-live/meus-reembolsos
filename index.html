@@ -27,7 +27,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .form{display:grid;gap:14px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:750;color:#555}.full{grid-column:1/-1}.form textarea{min-height:90px;resize:vertical}.upload{border:1.5px dashed #cfd2d8;padding:18px;border-radius:12px;text-align:center;color:var(--muted)}
 .modal{position:fixed;inset:0;background:rgba(20,22,25,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal.show{display:flex}.modalbox{background:#fff;border-radius:18px;max-width:650px;width:100%;max-height:92vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.close{background:#f1f2f4;border-radius:10px;width:36px;height:36px}
 .empty{padding:35px;text-align:center;color:var(--muted)}.payment-history{margin-top:7px;font-size:11px;color:var(--muted)}.payment-history b{color:var(--ok)}.receipt-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 7px;border-radius:8px;background:#f1f2f4;color:#333;font-size:11px;font-weight:800}.receipt-link:hover{background:#e6e7ea}
-.mobilebar{display:none}
+.item-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.item-actions button{background:#f1f2f4;border:1px solid #e1e3e6;border-radius:8px;padding:7px 9px;font-size:12px;font-weight:700}.item-actions button:focus-visible{outline:2px solid #333}.mobilebar{display:none}
 @media(max-width:900px){.sidebar{display:none}.main{margin:0;width:100%;padding:20px 16px 88px}.cards{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.storegrid{grid-template-columns:repeat(2,1fr)}.people{grid-template-columns:repeat(2,1fr)}.mobilebar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);z-index:10}.mobilebar button{padding:12px 4px;background:#fff;color:#666;font-size:11px}.mobilebar button.active{color:#111;font-weight:800}.mobilebar span{display:block;font-size:18px;margin-bottom:2px}.top{align-items:flex-start}.title h1{font-size:23px}}
 @media(max-width:560px){.cards{gap:9px}.card{padding:14px}.value{font-size:20px}.storegrid,.people,.form-grid{grid-template-columns:1fr}.section{padding:15px}.primary{padding:10px 12px}}
 </style>
@@ -100,6 +100,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 <button data-page="reports"><span>📊</span>Relatórios</button>
 </div>
 
+<div class="modal" id="editModal"><div class="modalbox"><div class="modalhead"><h2>Editar gasto</h2><button class="close" type="button" onclick="closeEdit()">✕</button></div><form class="form" onsubmit="saveEdit(event)"><div class="form-grid"><div class="field"><label>Data</label><input type="date" id="eDate" required></div><div class="field"><label>Valor original</label><input type="number" id="eValue" min="0.01" step="0.01" required></div><div class="field full"><label>Descrição</label><input id="eDesc" required></div><div class="field full"><label>Observação</label><textarea id="eNote"></textarea></div></div><button class="primary">Salvar alterações</button></form></div></div>
 <div class="modal" id="modal">
 <div class="modalbox">
  <div class="modalhead"><h2 id="modalTitle">Novo gasto</h2><button class="close" onclick="closeModal()">✕</button></div>
@@ -370,11 +371,11 @@ function money(n){return new Intl.NumberFormat('pt-BR',{style:'currency',currenc
 function statusLabel(s){return s==='paid'?'🟢 Reembolsado':s==='requested'?'🟡 Solicitado':'🔴 Pendente'}
 function statusClass(s){return s}
 function receivedTotal(x){return (x.payments||[]).reduce((a,p)=>a+Number(p.amount||0),0)}
-function remainingValue(x){return Math.max(0,Number(x.value||0)-receivedTotal(x))}
+function remainingValue(x){return Math.max(0,Number(x.value||0)-(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)))}
 function sum(arr){return arr.reduce((a,b)=>a+(b.status==='paid'?Number(b.value||0):remainingValue(b)),0)}
 function sumOriginal(arr){return arr.reduce((a,b)=>a+Number(b.value||0),0)}
 function render(){
- const pending=expenses.filter(x=>x.status!=='paid'), paid=expenses.filter(x=>x.status==='paid');
+ const pending=expenses.filter(x=>remainingValue(x)>0.005), paid=expenses.filter(x=>x.status==='paid');
  document.getElementById('totalPending').textContent=money(pending.reduce((a,x)=>a+remainingValue(x),0));
  const reimbursed=expenses.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
  document.getElementById('paidTotal').textContent=money(reimbursed);
@@ -386,7 +387,7 @@ function render(){
 let expandedStore=null;
 function toggleStorePending(name){expandedStore=expandedStore===name?null:name;renderCards()}
 function homeStoreCard(s){
- const pend=expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid').slice().sort((a,b)=>b.date.localeCompare(a.date));
+ const pend=expenses.filter(x=>x.type==='store'&&x.destination===s.name&&remainingValue(x)>0.005).slice().sort((a,b)=>b.date.localeCompare(a.date));
  const a=sum(pend), expanded=expandedStore===s.name;
  const rows=pend.length?pend.map(x=>`<div class="store-pending-row"><div><div class="store-pending-title">${x.desc}</div><div class="store-pending-meta">${x.date.split('-').reverse().join('/')} · ${statusLabel(x.status)}</div></div><div class="store-pending-value">${money(remainingValue(x))}</div></div>`).join(''):'<div class="empty" style="padding:14px 0">Nenhuma pendência nesta loja.</div>';
  return `<div class="store ${expanded?'expanded':''}" onclick="toggleStorePending('${s.name}')" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small><div class="store-toggle-hint">${expanded?'Toque novamente para recolher':'Toque para ver as pendências'}</div><div class="store-pending-list" onclick="event.stopPropagation()">${rows}</div></div>`;
@@ -394,9 +395,9 @@ function homeStoreCard(s){
 function renderCards(){
  const sc=document.getElementById('storeCards'), sp=document.getElementById('storePageCards');
  sc.innerHTML=stores.map(homeStoreCard).join('');
- sp.innerHTML=stores.map(s=>{const a=sum(expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid'));return `<div class="store" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small></div>`}).join('');
+ sp.innerHTML=stores.map(s=>{const a=sum(expenses.filter(x=>x.type==='store'&&x.destination===s.name&&remainingValue(x)>0.005));return `<div class="store" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small></div>`}).join('');
  const pc=document.getElementById('peopleCards'), pp=document.getElementById('personalCards');
- const ph=people.map(p=>{const a=sum(expenses.filter(x=>x.type==='personal'&&x.destination===p&&x.status!=='paid'));return `<div class="person"><b>👤 ${p}</b><strong>${money(a)}</strong><small>a receber</small></div>`}).join('');
+ const ph=people.map(p=>{const a=sum(expenses.filter(x=>x.type==='personal'&&x.destination===p&&remainingValue(x)>0.005));return `<div class="person"><b>👤 ${p}</b><strong>${money(a)}</strong><small>a receber</small></div>`}).join('');
  pc.innerHTML=ph; pp.innerHTML=ph;
 }
 function item(x){
@@ -406,13 +407,13 @@ function item(x){
  const border=store ? `border-left:5px solid ${store.color}` : 'border-left:5px solid #c9cbd1';
  const receipt=x.receiptId?`<button class="receipt-link" onclick="event.stopPropagation();openReceipt(${x.receiptId})">📎 Comprovante</button>`:'';
  const received=x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0);
- const remaining=x.status==='paid'?0:remainingValue(x);
+ const remaining=remainingValue(x);
  const history=(x.payments||[]).length?`<div class="payment-history">Recebido: <b>${money(received)}</b>${remaining>0.005?` · Falta: <strong>${money(remaining)}</strong>`:''}<br>${x.payments.map(p=>`${(p.date||'').split('-').reverse().join('/')} — ${money(p.amount)}`).join(' · ')}</div>`:'';
- return `<div class="item" onclick="cycleStatus(${x.id})" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
+ return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
    <div class="item-left">
      <div class="item-title">${x.desc}</div>
      <div class="item-meta">${x.date.split('-').reverse().join('/')} · <strong style="color:${accent}">${x.destination}</strong> · ${x.payment}</div>
-     ${receipt}${history}
+     ${receipt}${history}<div class="item-actions"><button type="button" onclick="event.stopPropagation();cycleStatus(${x.id})">${x.status==='pending'?'Solicitar':remaining>0.005?'Registrar pagamento':'Ver situação'}</button><button type="button" onclick="event.stopPropagation();openEdit(${x.id})">Editar gasto</button><button type="button" onclick="event.stopPropagation();correctPayment(${x.id})">Corrigir reembolso</button></div>
    </div>
    <div style="text-align:right"><b>${x.status==='paid'?money(x.value):money(remaining)}</b><br><span class="badge ${statusClass(x.status)}">${statusLabel(x.status)}</span></div>
  </div>`
@@ -459,30 +460,69 @@ async function saveExpense(e){
   if(btn){btn.disabled=false;btn.textContent='Salvar gasto'}
  }
 }
-async function cycleStatus(id){
- const x=expenses.find(e=>e.id===id); if(!x)return;
- if(x.status==='pending'){
-   x.status='requested';
- }else if(x.status==='requested'){
-   const remaining=remainingValue(x);
-   const raw=prompt(`Quanto você recebeu?\nValor ainda a receber: ${money(remaining)}`,remaining.toFixed(2).replace('.',','));
-   if(raw===null)return;
-   const amount=Number(String(raw).replace(/\./g,'').replace(',','.'));
-   if(!Number.isFinite(amount)||amount<=0){alert('Informe um valor válido.');return}
-   if(amount>remaining+0.005){alert(`O valor não pode ser maior que ${money(remaining)}.`);return}
-   x.payments=x.payments||[];
-   x.payments.push({amount:Number(amount.toFixed(2)),date:new Date().toISOString().slice(0,10),createdAt:Date.now()});
-   x.status=remainingValue(x)<=0.005?'paid':'requested';
+let editingId=null;
+function openEdit(id){
+ const x=expenses.find(e=>String(e.id)===String(id));if(!x)return;
+ editingId=id;eDate.value=x.date;eValue.value=x.value;eDesc.value=x.desc;eNote.value=x.note||'';
+ document.getElementById('editModal').classList.add('show');
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('show');editingId=null}
+async function saveEdit(event){
+ event.preventDefault();const x=expenses.find(e=>String(e.id)===String(editingId));if(!x)return;
+ const value=Number(eValue.value);
+ if(!Number.isFinite(value)||value<=0||value+0.005<receivedTotal(x)){alert('O valor não pode ser menor que o total já recebido. Corrija os pagamentos primeiro.');return}
+ x.date=eDate.value;x.value=value;x.desc=eDesc.value.trim();x.note=eNote.value;
+ if(!x.desc){alert('Informe uma descrição.');return}
+ if(x.payments?.length)x.status=remainingValue(x)<=0.005?'paid':'requested';
+ save();render();closeEdit();await saveCloudExpense(x);
+}
+async function correctPayment(id){
+ const x=expenses.find(e=>String(e.id)===String(id));if(!x)return;
+ const payments=x.payments||[];
+ if(!payments.length){
+  if(x.status!=='paid'){alert('Este lançamento não possui pagamentos para corrigir.');return}
+  if(!confirm(`Estornar o reembolso de ${money(x.value)}? O gasto voltará a ficar pendente.`))return;
+  x.status='pending';
  }else{
-   if(!confirm('Reabrir este lançamento como pendente? O histórico de reembolsos será mantido.'))return;
-   x.status=remainingValue(x)<=0.005?'paid':'pending';
+  const details=payments.map((p,i)=>`${i+1} - ${(p.date||'').split('-').reverse().join('/')} — ${money(p.amount)}`).join('\n');
+  const choice=prompt(`Pagamentos registrados:\n${details}\n\nDigite o número do pagamento que deseja corrigir (Cancelar para sair):`);
+  if(choice===null)return;
+  const index=Number(choice)-1;
+  if(!Number.isInteger(index)||index<0||index>=payments.length){alert('Selecione um número válido.');return}
+  const old=payments[index];
+  const raw=prompt(`Novo valor para este pagamento (0 para estornar):`,Number(old.amount).toFixed(2).replace('.',','));
+  if(raw===null)return;
+  const value=Number(String(raw).trim().replace(/\./g,'').replace(',','.'));
+  const other=receivedTotal(x)-Number(old.amount);
+  if(!Number.isFinite(value)||value<0||value+other>Number(x.value)+0.005){alert('Valor inválido ou superior ao total do gasto.');return}
+  if(!confirm(value===0?`Estornar ${money(old.amount)} deste lançamento?`:`Alterar este recebimento de ${money(old.amount)} para ${money(value)}?`))return;
+  if(value===0)payments.splice(index,1);else payments[index]={...old,amount:Number(value.toFixed(2))};
+  x.status=remainingValue(x)<=0.005?'paid':payments.length?'requested':'pending';
  }
+ save();render();await saveCloudExpense(x);
+}
+async function cycleStatus(id){
+ const x=expenses.find(e=>String(e.id)===String(id));if(!x)return;
+ if(x.status==='pending'){
+  if(!confirm('Marcar este gasto como solicitado?'))return;
+  x.status='requested';
+ }else if(remainingValue(x)>0.005){
+  const remaining=remainingValue(x);
+  const raw=prompt(`Quanto você recebeu?\nValor ainda a receber: ${money(remaining)}`,remaining.toFixed(2).replace('.',','));
+  if(raw===null)return;
+  const amount=Number(String(raw).trim().replace(/\./g,'').replace(',','.'));
+  if(!Number.isFinite(amount)||amount<=0||amount>remaining+0.005){alert('Informe um valor válido até '+money(remaining));return}
+  if(!confirm(`Confirmar recebimento de ${money(amount)}?`))return;
+  x.payments=x.payments||[];
+  x.payments.push({amount:Number(amount.toFixed(2)),date:new Date().toLocaleDateString('en-CA'),createdAt:Date.now()});
+  x.status=remainingValue(x)<=0.005?'paid':'requested';
+ }else{alert('Este gasto já foi reembolsado. Use “Corrigir reembolso” para fazer ajustes.');return}
  save();render();await saveCloudExpense(x);
 }
 function renderReports(){
  const type=document.getElementById('reportType')?.value||'all', month=document.getElementById('reportMonth')?.value||'';
  let arr=expenses.filter(x=>(type==='all'||x.type===type)&&(!month||x.date.startsWith(month)));
- const total=sumOriginal(arr), pending=arr.filter(x=>x.status!=='paid').reduce((a,x)=>a+remainingValue(x),0), paid=arr.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
+ const total=sumOriginal(arr), pending=arr.filter(x=>remainingValue(x)>0.005).reduce((a,x)=>a+remainingValue(x),0), paid=arr.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
  document.getElementById('reportCards').innerHTML=`<div class="card"><div class="kicker">Total lançado</div><div class="value">${money(total)}</div></div><div class="card"><div class="kicker">Pendente</div><div class="value">${money(pending)}</div></div><div class="card"><div class="kicker">Reembolsado</div><div class="value">${money(paid)}</div></div><div class="card"><div class="kicker">Lançamentos</div><div class="value">${arr.length}</div></div>`;
  const groups={};arr.forEach(x=>groups[x.destination]=(groups[x.destination]||0)+Number(x.value));
  document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>{const store=stores.find(s=>s.name===k);const accent=store?store.color:'#9A7BC7';const bg=store?`${store.color}12`:'#fff';const border=store?`border-left:5px solid ${store.color}`:'border-left:5px solid #c9cbd1';return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}"><b style="color:${accent}">${k}</b><strong>${money(v)}</strong></div>`}).join('')+'</div>';
