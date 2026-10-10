@@ -135,8 +135,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
     <div class="field full"><label>Descrição</label><input id="editDesc" required></div>
     <div class="field"><label>Data do gasto</label><input type="date" id="editDate" required></div>
     <div class="field"><label>Valor original (R$)</label><input type="number" id="editValue" min="0.01" step="0.01" required></div>
-    <div class="field full"><label>Situação</label><select id="editStatus" onchange="updateEditPaymentHelp()"><option value="pending">🔴 Pendente</option><option value="requested">🟡 Solicitado</option><option value="paid">🟢 Reembolsado</option></select></div>
-    <div class="field full"><label>Valor efetivamente recebido (R$)</label><input type="number" id="editReceived" min="0" step="0.01" oninput="updateEditPaymentHelp()"><small id="editHelp" style="color:var(--muted)"></small></div>
+    <div class="field full"><label>O que deseja fazer?</label><select id="editAction" onchange="chooseEditAction()"><option value="pending">🔴 Marcar como pendente</option><option value="requested">🟡 Marcar como solicitado</option><option value="partial">🟠 Registrar reembolso parcial</option><option value="paid">🟢 Registrar reembolso total</option><option value="correct">✏️ Corrigir pagamento anterior</option></select></div><input type="hidden" id="editStatus">
+    <div class="field full" id="editReceivedField"><label id="editReceivedLabel">Valor efetivamente recebido (R$)</label><input type="number" id="editReceived" min="0" step="0.01" oninput="updateEditPaymentHelp()"><small id="editHelp" style="color:var(--muted)"></small></div>
    </div>
    <button class="primary" type="submit">Salvar alterações</button>
   </form>
@@ -404,7 +404,7 @@ function toggleStorePending(name){expandedStore=expandedStore===name?null:name;r
 function homeStoreCard(s){
  const pend=expenses.filter(x=>x.type==='store'&&x.destination===s.name&&x.status!=='paid').slice().sort((a,b)=>b.date.localeCompare(a.date));
  const a=sum(pend), expanded=expandedStore===s.name;
- const rows=pend.length?pend.map(x=>`<div class="store-pending-row"><div><div class="store-pending-title">${x.desc}</div><div class="store-pending-meta">${x.date.split('-').reverse().join('/')} · ${statusLabel(x.status)}</div></div><div class="store-pending-value">${money(remainingValue(x))}</div></div>`).join(''):'<div class="empty" style="padding:14px 0">Nenhuma pendência nesta loja.</div>';
+ const rows=pend.length?pend.map(x=>`<div class="store-pending-row" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEdit(${x.id})}" onclick="openEdit(${x.id})" style="cursor:pointer"><div><div class="store-pending-title">${x.desc}</div><div class="store-pending-meta">${x.date.split('-').reverse().join('/')} · ${statusLabel(x.status)}</div></div><div class="store-pending-value">${money(remainingValue(x))}</div></div>`).join(''):'<div class="empty" style="padding:14px 0">Nenhuma pendência nesta loja.</div>';
  return `<div class="store ${expanded?'expanded':''}" onclick="toggleStorePending('${s.name}')" style="--store-color:${s.color};background:linear-gradient(180deg,${s.color}18 0%,#fff 68%)"><div class="store-head"><i class="dot"></i>${s.name}</div><div class="amount">${money(a)}</div><small>a receber</small><div class="store-toggle-hint">${expanded?'Toque novamente para recolher':'Toque para ver as pendências'}</div><div class="store-pending-list" onclick="event.stopPropagation()">${rows}</div></div>`;
 }
 function renderCards(){
@@ -424,7 +424,7 @@ function item(x){
  const received=x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0);
  const remaining=x.status==='paid'?0:remainingValue(x);
  const history=(x.payments||[]).length?`<div class="payment-history">Recebido: <b>${money(received)}</b>${remaining>0.005?` · Falta: <strong>${money(remaining)}</strong>`:''}<br>${x.payments.map(p=>`${(p.date||'').split('-').reverse().join('/')} — ${money(p.amount)}`).join(' · ')}</div>`:'';
- return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}">
+ return `<div class="item" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEdit(${x.id})}" onclick="openEdit(${x.id})" style="cursor:pointer;background:linear-gradient(90deg,${bg},#fff 32%);${border}">
    <div class="item-left">
      <div class="item-title">${x.desc}</div>
      <div class="item-meta">${x.date.split('-').reverse().join('/')} · <strong style="color:${accent}">${x.destination}</strong> · ${x.payment}</div>
@@ -482,12 +482,26 @@ function openEdit(id){
  document.getElementById('editDesc').value=x.desc||'';
  document.getElementById('editDate').value=x.date||'';
  document.getElementById('editValue').value=Number(x.value||0).toFixed(2);
+ document.getElementById('editAction').value=x.status==='paid'?'paid':(receivedTotal(x)>0?'correct':(x.status||'pending'));
  document.getElementById('editStatus').value=x.status||'pending';
  document.getElementById('editReceived').value=(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)).toFixed(2);
- updateEditPaymentHelp();
+ chooseEditAction();
  document.getElementById('editModal').classList.add('show');
 }
 function closeEdit(){editingId=null;document.getElementById('editModal').classList.remove('show')}
+function chooseEditAction(){
+ const action=document.getElementById('editAction').value;
+ const x=expenses.find(e=>String(e.id)===String(editingId));
+ const received=x?(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)):0;
+ const total=Number(document.getElementById('editValue').value||0);
+ const field=document.getElementById('editReceivedField');
+ field.style.display=['partial','correct'].includes(action)?'grid':'none';
+ document.getElementById('editReceivedLabel').textContent=action==='partial'?'Quanto recebeu agora? (R$)':'Total recebido correto (R$)';
+ if(action==='partial')document.getElementById('editReceived').value='';
+ if(action==='correct')document.getElementById('editReceived').value=received.toFixed(2);
+ document.getElementById('editStatus').value=action==='paid'?'paid':action==='requested'?'requested':'pending';
+ document.getElementById('editHelp').textContent=action==='partial'?`Já recebido: ${money(received)}. Ainda falta: ${money(Math.max(0,total-received))}.`:'Informe o total realmente recebido, ou zero para estornar.';
+}
 function updateEditPaymentHelp(){
  const status=document.getElementById('editStatus').value;
  const received=Number(document.getElementById('editReceived').value||0);
@@ -498,21 +512,37 @@ async function saveEdit(event){
  event.preventDefault();
  const x=expenses.find(e=>String(e.id)===String(editingId));if(!x)return;
  const value=Math.round(Number(document.getElementById('editValue').value)*100)/100;
- const received=Math.round(Number(document.getElementById('editReceived').value)*100)/100;
- const status=document.getElementById('editStatus').value;
- if(!Number.isFinite(value)||value<=0||!Number.isFinite(received)||received<0||received>value){alert('Confira o valor original e o valor recebido.');return}
- if(status==='paid'&&Math.abs(value-received)>0.005){alert('Para marcar como reembolsado, o valor recebido precisa ser igual ao valor original.');return}
- if(status!=='paid'&&value-received<0.005){alert('Para manter pendente ou solicitado, o valor recebido deve ser menor que o valor original.');return}
+ const action=document.getElementById('editAction').value;
  const oldReceived=x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0);
- if(Math.abs(oldReceived-received)>0.005&&!confirm(`Alterar o total recebido de ${money(oldReceived)} para ${money(received)}? Isso corrigirá o histórico de recebimentos deste lançamento.`))return;
+ const amount=Math.round(Number(document.getElementById('editReceived').value)*100)/100;
+ if(!Number.isFinite(value)||value<=0){alert('Informe um valor original válido.');return}
+ let received=oldReceived;
+ if(action==='pending'||action==='requested'){
+   if(oldReceived>0.005&&!confirm(`Este lançamento tem ${money(oldReceived)} registrado como recebido. Deseja estornar esse valor e marcar como ${action==='pending'?'pendente':'solicitado'}?`))return;
+   received=0;
+ }else if(action==='paid'){
+   if(value<oldReceived-0.005){alert('O valor original não pode ser menor que o recebido. Use Corrigir pagamento anterior.');return}
+   received=value;
+ }else if(action==='partial'){
+   if(!Number.isFinite(amount)||amount<=0||amount>=value-oldReceived-0.005){alert('Para reembolso parcial, informe um valor maior que zero e menor que o saldo a receber.');return}
+   received=Math.round((oldReceived+amount)*100)/100;
+ }else if(action==='correct'){
+   if(!Number.isFinite(amount)||amount<0||amount>value){alert('Informe um total recebido entre zero e o valor original.');return}
+   received=amount;
+   if(Math.abs(oldReceived-received)>0.005&&!confirm(`Corrigir valor recebido de ${money(oldReceived)} para ${money(received)}?`))return;
+ }
  x.desc=document.getElementById('editDesc').value.trim();
+ if(!x.desc){alert('Informe a descrição.');return}
  x.date=document.getElementById('editDate').value;
- x.value=value;x.status=status;
- if(Math.abs(oldReceived-received)>0.005){
-   x.payments=received>0?[{amount:received,date:new Date().toLocaleDateString('en-CA'),createdAt:Date.now(),note:'Valor corrigido manualmente'}]:[];
+ x.value=value;
+ x.status=received>=value-0.005?'paid':(action==='requested'?'requested':action==='pending'?'pending':'requested');
+ if(action==='partial'&&oldReceived>0&&Array.isArray(x.payments)){
+   x.payments.push({amount,date:new Date().toLocaleDateString('en-CA'),createdAt:Date.now()});
+ }else if(action==='partial'&&oldReceived===0){
+   x.payments=[{amount,date:new Date().toLocaleDateString('en-CA'),createdAt:Date.now()}];
+ }else if(Math.abs(received-oldReceived)>0.005||action==='correct'){
+   x.payments=received>0?[{amount:received,date:new Date().toLocaleDateString('en-CA'),createdAt:Date.now(),note:'Pagamento ajustado'}]:[];
    x.paymentCorrectionAt=new Date().toISOString();
- }else if(!x.payments?.length&&received>0){
-   x.payments=[{amount:received,date:x.date,createdAt:Date.now(),note:'Recebimento anterior'}];
  }
  save();render();closeEdit();await saveCloudExpense(x);
 }
@@ -523,7 +553,7 @@ function renderReports(){
  const total=sumOriginal(arr), pending=arr.filter(x=>x.status!=='paid').reduce((a,x)=>a+remainingValue(x),0), paid=arr.reduce((a,x)=>a+(x.payments?.length?receivedTotal(x):(x.status==='paid'?Number(x.value||0):0)),0);
  document.getElementById('reportCards').innerHTML=`<div class="card"><div class="kicker">Total lançado</div><div class="value">${money(total)}</div></div><div class="card"><div class="kicker">Pendente</div><div class="value">${money(pending)}</div></div><div class="card"><div class="kicker">Reembolsado</div><div class="value">${money(paid)}</div></div><div class="card"><div class="kicker">Lançamentos</div><div class="value">${arr.length}</div></div>`;
  const groups={};arr.forEach(x=>groups[x.destination]=(groups[x.destination]||0)+Number(x.value));
- document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>{const store=stores.find(s=>s.name===k);const accent=store?store.color:'#9A7BC7';const bg=store?`${store.color}12`:'#fff';const border=store?`border-left:5px solid ${store.color}`:'border-left:5px solid #c9cbd1';return `<div class="item" style="background:linear-gradient(90deg,${bg},#fff 32%);${border}"><b style="color:${accent}">${k}</b><strong>${money(v)}</strong></div>`}).join('')+'</div>';
+ document.getElementById('reportBody').innerHTML='<div class="list">'+Object.entries(groups).map(([k,v])=>{const store=stores.find(s=>s.name===k);const accent=store?store.color:'#9A7BC7';const bg=store?`${store.color}12`:'#fff';const border=store?`border-left:5px solid ${store.color}`:'border-left:5px solid #c9cbd1';return `<div class="item" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEdit(${x.id})}" onclick="openEdit(${x.id})" style="cursor:pointer;background:linear-gradient(90deg,${bg},#fff 32%);${border}"><b style="color:${accent}">${k}</b><strong>${money(v)}</strong></div>`}).join('')+'</div>';
 }
 document.querySelectorAll('[data-page]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(btn.dataset.page).classList.add('active');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===btn.dataset.page));window.scrollTo(0,0)}));
 populate();render();
